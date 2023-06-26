@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Timers;
 using Timer = System.Timers.Timer;
 
 namespace TaskTrayWeek;
@@ -14,14 +13,18 @@ public class WeekApplicationContext : ApplicationContext
     public WeekApplicationContext ()
     {
         // Check if week has changed once every hour incase some pesky person forgot to shut their PC down
-        var timer = new Timer();
-        timer.Interval = 3600000;
+        var timer = new Timer
+        {
+            Interval = 3600000,
+        };
         timer.Elapsed += TimerOnElapsed;
         
-        var itemTop = new ToolStripMenuItem("Current week");
-        itemTop.Enabled = false;
-        
-        var itemUpdate = new ToolStripMenuItem("Force update", null, delegate { TimerOnElapsed(null ,null!); });
+        var itemTop = new ToolStripMenuItem("Current week")
+        {
+            Enabled = false
+        };
+
+        var itemUpdate = new ToolStripMenuItem("Force update", null, (_, _) => TimerOnElapsed(this, EventArgs.Empty));
         
         _getWeekNUm = new ToolStripTextBox("Get date from week");
         _getWeekNUm.TextBox!.PlaceholderText = "Enter week number and press enter";
@@ -30,15 +33,17 @@ public class WeekApplicationContext : ApplicationContext
         var item = new ToolStripMenuItem("Exit", null, OnApplicationExit);
         
         // Initialize Tray Icon
-        _trayIcon = new NotifyIcon();
-        _trayIcon.Visible = true;
-        _trayIcon.ContextMenuStrip = new ContextMenuStrip() { Items = { itemTop, itemUpdate, _getWeekNUm, item }};
-        _trayIcon.Icon = GenerateIcon(0);
-        _trayIcon.BalloonTipText = "Current week";
-        _trayIcon.Text = "Current week";
-        
+        _trayIcon = new NotifyIcon()
+        {
+            Visible = true,
+            Icon = GenerateIcon(0),
+            BalloonTipText = "Current week",
+            Text = "Current week",
+            ContextMenuStrip = new ContextMenuStrip() { Items = { itemTop, itemUpdate, _getWeekNUm, item }}
+        };
+
         // Initialize application
-        TimerOnElapsed(null,null!);
+        TimerOnElapsed(this,EventArgs.Empty);
         Application.ApplicationExit += OnApplicationExit;
         timer.Start();
     }
@@ -59,7 +64,7 @@ public class WeekApplicationContext : ApplicationContext
         }
     }
 
-    private void TimerOnElapsed(object? sender, ElapsedEventArgs e)
+    private void TimerOnElapsed(object? sender, EventArgs e)
     {
         _trayIcon.Icon = GenerateIcon(GetWeekNumber(DateTime.Now));
     }
@@ -68,6 +73,7 @@ public class WeekApplicationContext : ApplicationContext
     {
         // Hide tray icon, otherwise it will remain shown until user mouses over it
         _trayIcon.Visible = false;
+        _trayIcon.Dispose();
         Application.Exit();
     }
 

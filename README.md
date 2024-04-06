@@ -10,5 +10,7 @@ Right clicking gives you the option to:
 
 1. Force update the week displayed in the trayicon
 2. Enter a weeknumber (Press enter) that will give you date of the monday in that week
+3. Enter a date (Format: DD-MM-YYYY) and press enter. You will get the week number back
+4. Click the "Start on boot"-button. If program is launched as administrator, the program will add itself to bootup
 
 ![Rightclick](./Images/Tasktray_rightclick.png)

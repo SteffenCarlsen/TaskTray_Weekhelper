@@ -7,14 +7,14 @@ public class WeekApplicationContext : ApplicationContext
 {
     private const int FONTSIZE_SMALL = 15;
     private const int FONTSIZE_BIG = 21;
-    private ToolStripMenuItem _exitApplicationItem;
-    private ToolStripTextBox _getWeekNumFromDateItem;
-    private ToolStripTextBox _getWeekNumItem;
-    private ToolStripMenuItem _manuallyUpdateIconItem;
-    private ToolStripMenuItem _toolTipTitleItem;
-    private ToolStripMenuItem _toolTipStartupCheckbox;
+    private ToolStripMenuItem? _exitApplicationItem;
+    private ToolStripTextBox? _getWeekNumFromDateItem;
+    private ToolStripTextBox? _getWeekNumItem;
+    private ToolStripMenuItem? _manuallyUpdateIconItem;
+    private ToolStripMenuItem? _toolTipTitleItem;
+    private ToolStripMenuItem? _toolTipStartupCheckbox;
 
-    private NotifyIcon _trayIcon;
+    private NotifyIcon? _trayIcon;
 
     public WeekApplicationContext()
     {

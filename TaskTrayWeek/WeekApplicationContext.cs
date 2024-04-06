@@ -12,6 +12,7 @@ public class WeekApplicationContext : ApplicationContext
     private ToolStripTextBox _getWeekNumItem;
     private ToolStripMenuItem _manuallyUpdateIconItem;
     private ToolStripMenuItem _toolTipTitleItem;
+    private ToolStripMenuItem _toolTipStartupCheckbox;
 
     private NotifyIcon _trayIcon;
 
@@ -42,6 +43,32 @@ public class WeekApplicationContext : ApplicationContext
         };
         _manuallyUpdateIconItem = new ToolStripMenuItem("Force update", null, (_, _) => TimerOnElapsed(this, EventArgs.Empty));
         _exitApplicationItem = new ToolStripMenuItem("Exit", null, OnApplicationExit);
+        _toolTipStartupCheckbox = new ToolStripMenuItem("Start on boot", null, (_, _) =>
+        {
+            if (_toolTipStartupCheckbox.Checked && !Program.StartupManager.IsRegistered)
+            {
+                try
+                {
+                    Program.StartupManager.Register();
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("Failed to register application on startup\n" + e.Message + Environment.NewLine + Environment.NewLine + "Please launch the application as administrator to register application as startup", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else if (!_toolTipStartupCheckbox.Checked && Program.StartupManager.IsRegistered)
+            {
+                try
+                {
+                    Program.StartupManager.Unregister();
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("Failed to unregister application on startup\n" + e.Message + Environment.NewLine + Environment.NewLine + "Please launch the application as administrator to unregister application as startup", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        });
+        _toolTipStartupCheckbox.CheckOnClick = true;
     }
 
     private void InitializeToolStripTextBoxes()
@@ -67,7 +94,7 @@ public class WeekApplicationContext : ApplicationContext
             {
                 Items =
                 {
-                    _toolTipTitleItem, _manuallyUpdateIconItem, _getWeekNumItem, _getWeekNumFromDateItem,
+                    _toolTipTitleItem, _manuallyUpdateIconItem, _getWeekNumItem, _getWeekNumFromDateItem, _toolTipStartupCheckbox,
                     _exitApplicationItem
                 }
             }

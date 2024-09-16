@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using Microsoft.Win32;
 using Timer = System.Timers.Timer;
 
 namespace TaskTrayWeek;
@@ -13,6 +14,8 @@ public class WeekApplicationContext : ApplicationContext
     private ToolStripMenuItem? _manuallyUpdateIconItem;
     private ToolStripMenuItem? _toolTipTitleItem;
     private ToolStripMenuItem? _toolTipStartupCheckbox;
+    private bool _isAddedToStartup;
+
 
     private NotifyIcon? _trayIcon;
 
@@ -37,37 +40,14 @@ public class WeekApplicationContext : ApplicationContext
 
     private void InitializeMenuItem()
     {
+        _isAddedToStartup = IsApplicationInStartup();
         _toolTipTitleItem = new ToolStripMenuItem("Current week")
         {
             Enabled = false
         };
         _manuallyUpdateIconItem = new ToolStripMenuItem("Force update", null, (_, _) => TimerOnElapsed(this, EventArgs.Empty));
         _exitApplicationItem = new ToolStripMenuItem("Exit", null, OnApplicationExit);
-        _toolTipStartupCheckbox = new ToolStripMenuItem("Start on boot", null, (_, _) =>
-        {
-            if (_toolTipStartupCheckbox.Checked && !Program.StartupManager.IsRegistered)
-            {
-                try
-                {
-                    Program.StartupManager.Register();
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("Failed to register application on startup\n" + e.Message + Environment.NewLine + Environment.NewLine + "Please launch the application as administrator to register application as startup", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            else if (!_toolTipStartupCheckbox.Checked && Program.StartupManager.IsRegistered)
-            {
-                try
-                {
-                    Program.StartupManager.Unregister();
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("Failed to unregister application on startup\n" + e.Message + Environment.NewLine + Environment.NewLine + "Please launch the application as administrator to unregister application as startup", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        });
+        _toolTipStartupCheckbox = new ToolStripMenuItem("Start on boot", null, AddToStartup) {Checked = _isAddedToStartup};
         _toolTipStartupCheckbox.CheckOnClick = true;
     }
 
@@ -80,6 +60,70 @@ public class WeekApplicationContext : ApplicationContext
         _getWeekNumFromDateItem = new ToolStripTextBox("Get week from date");
         _getWeekNumFromDateItem.TextBox!.PlaceholderText = "Enter date";
         _getWeekNumFromDateItem.KeyDown += GetWeekNumFromDateItemOnKeyDown;
+    }
+    
+    private bool IsApplicationInStartup()
+    {
+        using (var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false))
+        {
+            return key?.GetValue("TaskTrayWeek") != null;
+        }
+    }
+    
+    private void AddToStartup(object? sender, EventArgs e)
+    {
+        _isAddedToStartup = !_isAddedToStartup;
+        _toolTipStartupCheckbox.Checked = _isAddedToStartup;
+
+        if (_isAddedToStartup)
+        {
+            AddApplicationToStartup();
+        }
+        else
+        {
+            RemoveApplicationFromStartup();
+        }
+    }
+    
+    private void AddApplicationToStartup()
+    {
+        try
+        {
+            using (var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
+            {
+                if (key == null)
+                {
+                    MessageBox.Show("Failed to open registry key.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                key.SetValue("TaskTrayWeek", $"\"{System.Reflection.Assembly.GetExecutingAssembly().Location.Replace(".dll", ".exe")}\"");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to add application to startup: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+
+    private void RemoveApplicationFromStartup()
+    {
+        try
+        {
+            using (var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
+            {
+                if (key == null)
+                {
+                    MessageBox.Show("Failed to open registry key.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                key.DeleteValue("TaskTrayWeek", false);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to remove application from startup: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void InitializeTrayIcon()

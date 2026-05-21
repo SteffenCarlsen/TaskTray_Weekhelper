@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_PATH: TaskTrayWeek/TaskTrayWeek.csproj
+  PUBLISH_DIR: artifacts/publish
+  ARTIFACT_DIR: artifacts/release
+  RUNTIME_IDENTIFIER: win-x64
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content $env:PROJECT_PATH
+          $baseVersion = $project.Project.PropertyGroup |
+            ForEach-Object { $_.Version } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -First 1
+
+          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
+            $baseVersion = "0.1.0"
+          }
+
+          $releaseVersion = "$baseVersion.$env:GITHUB_RUN_NUMBER"
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $tagName = "v$releaseVersion"
+
+          "base_version=$baseVersion" >> $env:GITHUB_OUTPUT
+          "release_version=$releaseVersion" >> $env:GITHUB_OUTPUT
+          "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
+          "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish $env:PROJECT_PATH `
+            --configuration Release `
+            --runtime $env:RUNTIME_IDENTIFIER `
+            --self-contained true `
+            --output $env:PUBLISH_DIR `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:FileVersion=${{ steps.version.outputs.release_version }} `
+            -p:AssemblyVersion=${{ steps.version.outputs.base_version }} `
+            -p:InformationalVersion=${{ steps.version.outputs.release_version }}+${{ steps.version.outputs.short_sha }}
+
+      - name: Package release artifact
+        id: package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:ARTIFACT_DIR | Out-Null
+          $archivePath = Join-Path $env:ARTIFACT_DIR "TaskTrayWeek-${{ steps.version.outputs.release_version }}-${env:RUNTIME_IDENTIFIER}.zip"
+          Compress-Archive -Path "$env:PUBLISH_DIR/*" -DestinationPath $archivePath -Force
+          "archive_path=$archivePath" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag_name }}" `
+            "${{ steps.package.outputs.archive_path }}" `
+            --target "${{ github.sha }}" `
+            --title "TaskTrayWeek ${{ steps.version.outputs.release_version }}" `
+            --notes "Automated release for ${{ github.sha }}."

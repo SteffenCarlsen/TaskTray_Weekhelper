@@ -6,16 +6,13 @@
         <Nullable>enable</Nullable>
         <UseWindowsForms>true</UseWindowsForms>
         <ImplicitUsings>enable</ImplicitUsings>
+        <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
         <Version>1.1.0</Version>
         <AssemblyVersion>1.1</AssemblyVersion>
     </PropertyGroup>
 
     <ItemGroup>
       <None Remove="Icons\test.png" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="StartupHelper" Version="1.0.3.4" />
     </ItemGroup>
 
 </Project>

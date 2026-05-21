@@ -15,7 +15,8 @@ concurrency:
 
 env:
   PROJECT_PATH: TaskTrayWeek/TaskTrayWeek.csproj
-  PUBLISH_DIR: artifacts/publish
+  SELF_CONTAINED_PUBLISH_DIR: artifacts/publish/self-contained
+  PORTABLE_PUBLISH_DIR: artifacts/publish/portable
   ARTIFACT_DIR: artifacts/release
   RUNTIME_IDENTIFIER: win-x64
 
@@ -31,7 +32,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Resolve release version
         id: version
@@ -62,17 +63,28 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Publish
+      - name: Publish self-contained build
         shell: pwsh
         run: |
           dotnet publish $env:PROJECT_PATH `
             --configuration Release `
             --runtime $env:RUNTIME_IDENTIFIER `
             --self-contained true `
-            --output $env:PUBLISH_DIR `
+            --output $env:SELF_CONTAINED_PUBLISH_DIR `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
+            -p:FileVersion=${{ steps.version.outputs.release_version }} `
+            -p:AssemblyVersion=${{ steps.version.outputs.base_version }} `
+            -p:InformationalVersion=${{ steps.version.outputs.release_version }}+${{ steps.version.outputs.short_sha }}
+
+      - name: Publish portable build
+        shell: pwsh
+        run: |
+          dotnet publish $env:PROJECT_PATH `
+            --configuration Release `
+            --self-contained false `
+            --output $env:PORTABLE_PUBLISH_DIR `
             -p:FileVersion=${{ steps.version.outputs.release_version }} `
             -p:AssemblyVersion=${{ steps.version.outputs.base_version }} `
             -p:InformationalVersion=${{ steps.version.outputs.release_version }}+${{ steps.version.outputs.short_sha }}
@@ -82,9 +94,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path $env:ARTIFACT_DIR | Out-Null
-          $archivePath = Join-Path $env:ARTIFACT_DIR "TaskTrayWeek-${{ steps.version.outputs.release_version }}-${env:RUNTIME_IDENTIFIER}.zip"
-          Compress-Archive -Path "$env:PUBLISH_DIR/*" -DestinationPath $archivePath -Force
-          "archive_path=$archivePath" >> $env:GITHUB_OUTPUT
+          $selfContainedArchivePath = Join-Path $env:ARTIFACT_DIR "TaskTrayWeek-${{ steps.version.outputs.release_version }}-${env:RUNTIME_IDENTIFIER}-self-contained.zip"
+          $portableArchivePath = Join-Path $env:ARTIFACT_DIR "TaskTrayWeek-${{ steps.version.outputs.release_version }}-portable.zip"
+
+          Compress-Archive -Path "$env:SELF_CONTAINED_PUBLISH_DIR/*" -DestinationPath $selfContainedArchivePath -Force
+          Compress-Archive -Path "$env:PORTABLE_PUBLISH_DIR/*" -DestinationPath $portableArchivePath -Force
+
+          "self_contained_archive_path=$selfContainedArchivePath" >> $env:GITHUB_OUTPUT
+          "portable_archive_path=$portableArchivePath" >> $env:GITHUB_OUTPUT
 
       - name: Create GitHub release
         shell: pwsh
@@ -92,7 +109,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ steps.version.outputs.tag_name }}" `
-            "${{ steps.package.outputs.archive_path }}" `
+            "${{ steps.package.outputs.self_contained_archive_path }}" `
+            "${{ steps.package.outputs.portable_archive_path }}" `
             --target "${{ github.sha }}" `
             --title "TaskTrayWeek ${{ steps.version.outputs.release_version }}" `
-            --notes "Automated release for ${{ github.sha }}."
+            --notes "Automated release for ${{ github.sha }}. Includes a self-contained win-x64 build and a portable framework-dependent build."

@@ -10,6 +10,8 @@ public class WeekApplicationContext : ApplicationContext
     private const int MinIconFontSize = 6;
     private const int SmCxSmIcon = 49;
     private const int SmCySmIcon = 50;
+    private const string InvalidDateMessage = "Use DD-MM-YYYY";
+    private const string InvalidWeekMessage = "Week must be 1-53";
     private const string StartupRegistryPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string StartupRegistryName = "TaskTrayWeek";
     private readonly ToolStripMenuItem _exitApplicationItem;
@@ -211,14 +213,14 @@ public class WeekApplicationContext : ApplicationContext
     {
         if (e.KeyCode == Keys.Enter)
         {
-            if (int.TryParse(_getWeekNumItem.TextBox.Text, out var result))
+            if (int.TryParse(_getWeekNumItem.TextBox.Text, out var result) && result is >= 1 and <= 53)
             {
                 var weekNum = FirstDateOfWeekISO8601(result);
                 _getWeekNumItem.TextBox.Text = weekNum.ToShortDateString();
             }
             else
             {
-                _getWeekNumItem.TextBox.Text = "Badly formatted string";
+                _getWeekNumItem.TextBox.Text = InvalidWeekMessage;
             }
         }
     }
@@ -234,7 +236,7 @@ public class WeekApplicationContext : ApplicationContext
             }
             else
             {
-                _getWeekNumFromDateItem.TextBox.Text = "Badly formatted string";
+                _getWeekNumFromDateItem.TextBox.Text = InvalidDateMessage;
             }
         }
     }
